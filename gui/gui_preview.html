@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ZedBoard 5 Band EQ Preview</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #e8ebef;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #222;
+    }
+    .window {
+      width: 780px;
+      background: #f7f7f7;
+      border: 1px solid #b8bec7;
+      box-shadow: 0 18px 45px rgba(24, 32, 45, .18);
+    }
+    .title {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      background: #ffffff;
+      border-bottom: 1px solid #d7dbe1;
+      font-size: 13px;
+    }
+    .content {
+      padding: 14px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    select, button {
+      height: 28px;
+      border: 1px solid #aeb5bf;
+      background: #fff;
+      border-radius: 3px;
+      padding: 0 9px;
+      font: inherit;
+    }
+    button {
+      background: #f5f6f8;
+    }
+    .status {
+      margin-left: 10px;
+      font-size: 13px;
+      color: #555;
+    }
+    .bands {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 18px;
+      justify-items: center;
+      margin: 22px 0 18px;
+    }
+    .band {
+      text-align: center;
+      font-size: 13px;
+    }
+    .slider {
+      position: relative;
+      height: 220px;
+      width: 42px;
+      margin: 8px auto 6px;
+    }
+    .track {
+      position: absolute;
+      left: 19px;
+      top: 8px;
+      bottom: 8px;
+      width: 4px;
+      background: #d2d6dc;
+      border-radius: 3px;
+    }
+    .fill {
+      position: absolute;
+      left: 19px;
+      bottom: 108px;
+      width: 4px;
+      height: 46px;
+      background: #5b7fb8;
+      border-radius: 3px;
+    }
+    .knob {
+      position: absolute;
+      left: 8px;
+      top: 91px;
+      width: 26px;
+      height: 14px;
+      background: #ffffff;
+      border: 1px solid #8c96a3;
+      border-radius: 3px;
+      box-shadow: 0 1px 2px rgba(0,0,0,.18);
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 76px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .htrack {
+      height: 6px;
+      background: #d2d6dc;
+      border-radius: 4px;
+      position: relative;
+    }
+    .hfill {
+      width: 54%;
+      height: 100%;
+      background: #5b7fb8;
+      border-radius: 4px;
+    }
+    .hknob {
+      position: absolute;
+      left: 53%;
+      top: -5px;
+      width: 15px;
+      height: 15px;
+      background: #fff;
+      border: 1px solid #8c96a3;
+      border-radius: 50%;
+    }
+    .checks {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      margin-top: 14px;
+    }
+    .meter {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .meterbar {
+      height: 20px;
+      background: #dfe3e8;
+      border: 1px solid #bcc4cf;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .meterfill {
+      width: 64%;
+      height: 100%;
+      background: linear-gradient(90deg, #32a852, #d7b83f 72%, #cf493f);
+    }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <div class="title">ZedBoard 5 Band EQ</div>
+    <div class="content">
+      <div class="row">
+        <select><option>COM5</option></select>
+        <button>Refresh</button>
+        <button>Connect</button>
+        <button>Disconnect</button>
+        <span class="status">Codec wait</span>
+      </div>
+
+      <div class="bands">
+        <div class="band"><div>100 Hz</div><div class="slider"><div class="track"></div><div class="fill"></div><div class="knob"></div></div><div>+3.5 dB</div></div>
+        <div class="band"><div>300 Hz</div><div class="slider"><div class="track"></div><div class="knob" style="top:106px"></div></div><div>0.0 dB</div></div>
+        <div class="band"><div>1 kHz</div><div class="slider"><div class="track"></div><div class="knob" style="top:124px"></div></div><div>-2.0 dB</div></div>
+        <div class="band"><div>3 kHz</div><div class="slider"><div class="track"></div><div class="fill" style="height:34px; bottom:108px"></div><div class="knob" style="top:96px"></div></div><div>+2.0 dB</div></div>
+        <div class="band"><div>8 kHz</div><div class="slider"><div class="track"></div><div class="fill" style="height:70px; bottom:108px"></div><div class="knob" style="top:72px"></div></div><div>+5.0 dB</div></div>
+      </div>
+
+      <div class="controls">
+        <div>Volume</div>
+        <div class="htrack"><div class="hfill"></div><div class="hknob"></div></div>
+        <div>0.8x</div>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox"> Bypass</label>
+        <label><input type="checkbox"> Mute</label>
+        <button>Reset Flat</button>
+      </div>
+      <div class="meter">
+        <div>VU</div>
+        <div class="meterbar"><div class="meterfill"></div></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

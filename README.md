@@ -1,10 +1,33 @@
-# ZedBoard 5-Band Audio Equalizer
+# ZedEQ — FPGA Based Audio Equalizer with GUI Control
 
-Real-time audio EQ running entirely in FPGA fabric — no ARM core, no Linux, no shortcuts. Five biquad IIR filters process live audio from the onboard ADAU1761 codec, while a Python GUI handles coefficient updates and control over UART.
+A real-time 5-band parametric audio equalizer implemented entirely in FPGA programmable logic, with a Python desktop GUI for live control. No ARM core, no Linux, no shortcuts — the PL does all the heavy lifting.
 
 ![GUI Preview](docs/gui_preview.png)
 
-Built on a ZedBoard (Zynq-7000 XC7Z020) using Verilog-2001 and Vivado. The PL does all the heavy lifting.
+---
+
+## Description
+
+ZedEQ is an FPGA DSP project built on the ZedBoard (Xilinx Zynq-7000 XC7Z020) using Verilog-2001 and Vivado. Audio from the onboard ADAU1761 codec is processed in real time through five cascaded biquad IIR filters running in the programmable logic fabric. A Python GUI running on your PC lets you adjust each EQ band, control master volume, mute, bypass, and reset the EQ — all over UART.
+
+The main idea was to keep everything in hardware: the filtering, volume control, saturation protection, and even the VU meter on the ZedBoard's onboard LEDs. The PC side only sends new coefficients when you move a slider — it plays no role in the actual audio path.
+
+---
+
+## Overview
+
+| | |
+|---|---|
+| **Board** | ZedBoard (Xilinx Zynq-7000 XC7Z020) |
+| **HDL** | Verilog-2001 |
+| **Toolchain** | Vivado (PL-only, no SDK/Vitis) |
+| **Audio Codec** | ADAU1761 (onboard) |
+| **EQ Bands** | 5 (100 Hz, 300 Hz, 1 kHz, 3 kHz, 8 kHz) |
+| **Filter Type** | Cascaded second-order IIR biquad |
+| **Coefficient Format** | Q4.28 signed fixed-point |
+| **PC Interface** | UART via PMOD JA (3.3V USB-UART adapter) |
+| **GUI** | Python + Tkinter + pyserial |
+| **VU Meter** | LD0–LD7 onboard LEDs |
 
 ---
 
