@@ -1,130 +1,85 @@
-# FPGA-Based Hardware-Accelerated Audio Equalizer with GUI Control
+# ZedBoard 5-Band Audio Equalizer
 
-A real-time 5-band audio equalizer built for the ZedBoard FPGA using Verilog-2001 and Vivado. The design processes live audio in FPGA fabric using cascaded IIR biquad filters, while a Python GUI controls EQ bands, volume, mute, bypass, and reset over UART.
+Real-time audio EQ running entirely in FPGA fabric — no ARM core, no Linux, no shortcuts. Five biquad IIR filters process live audio from the onboard ADAU1761 codec, while a Python GUI handles coefficient updates and control over UART.
 
-The project also includes ADAU1761 codec configuration over I2C, I2S-style audio streaming, output volume control, saturation protection, and an LED VU meter on the ZedBoard.
+![GUI Preview](docs/gui_preview.png)
 
-## Key Features
+Built on a ZedBoard (Zynq-7000 XC7Z020) using Verilog-2001 and Vivado. The PL does all the heavy lifting.
 
-- Real-time 5-band audio equalizer on FPGA
-- Verilog-2001 RTL, Vivado-only hardware flow
-- Cascaded IIR biquad filters for EQ processing
-- Python GUI for live band gain and volume control
-- UART command protocol between PC and FPGA
-- ADAU1761 onboard codec setup using I2C
-- I2S-style audio input/output interface
-- LD0-LD7 LED VU meter showing output audio level
-- Mute, bypass, reset-flat, and master volume control
-- Modular RTL structure for easier debugging and explanation
+---
 
-## System Overview
+## How It Works
 
-```text
-Python GUI
-   |
-   | UART packets
-   v
-FPGA UART Receiver
-   |
-   v
-Control Register Bank
-   |
-   v
-5-Band Biquad EQ Coefficients
+Audio comes in through the ADAU1761 codec via an I2S-style interface, runs through five cascaded pipelined biquad IIR filters, hits a volume stage with saturation clipping, then goes back out through the codec. The onboard LEDs show a VU meter of the post-processed signal in real time.
 
+The Python GUI calculates biquad coefficients from slider positions and sends them to the FPGA as Q4.28 fixed-point values over a UART packet protocol. There's no processing happening on the PC side during audio playback — it only sends new coefficients when you move a slider.
 
-Audio Input
-   |
-   v
-ADAU1761 Codec
-   |
-   | I2S-style samples
-   v
-FPGA Audio Pipeline
-   |
-   v
-5-Band Biquad IIR EQ
-   |
-   v
-Volume Control + Saturation
-   |
-   +----> LED VU Meter
-   |
-   v
-ADAU1761 Codec
-   |
-   v
-Audio Output
+```
+Python GUI  →  UART packets  →  FPGA UART RX  →  Control Register Bank
+                                                         |
+                                                         ↓
+Audio In → ADAU1761 → I2S RX → 5-Band Biquad EQ → Volume/Sat → I2S TX → ADAU1761 → Audio Out
+                                                                    |
+                                                                    ↓
+                                                               LED VU Meter
 ```
 
 ## EQ Bands
 
-The GUI controls five peaking-EQ bands:
+| Band | Frequency |
+|------|-----------|
+| 1    | 100 Hz    |
+| 2    | 300 Hz    |
+| 3    | 1 kHz     |
+| 4    | 3 kHz     |
+| 5    | 8 kHz     |
 
-| Band | Center Frequency |
-| ---- | ---------------- |
-| 1 | 100 Hz |
-| 2 | 300 Hz |
-| 3 | 1 kHz |
-| 4 | 3 kHz |
-| 5 | 8 kHz |
+Each band is an independent peaking EQ implemented as:
 
-Each slider changes the gain of one band. The Python GUI calculates biquad coefficients and sends them to the FPGA as signed Q4.28 fixed-point values.
-
-## Biquad Filter
-
-Each EQ band is implemented as a second-order IIR biquad:
-
-```text
-y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
+```
+y[n] = b0·x[n] + b1·x[n-1] + b2·x[n-2] - a1·y[n-1] - a2·y[n-2]
 ```
 
-The FPGA stores five coefficients per band:
+The biquad datapath is pipelined — if you try to run it combinationally it won't meet timing after P&R.
 
-```text
-b0, b1, b2, a1, a2
+---
+
+## Repo Layout
+
 ```
-
-The biquad datapath is pipelined to meet timing after place and route.
-
-## Repository Structure
-
-```text
 rtl/
-  top_zedboard_eq.v          top-level ZedBoard integration
-  clock_reset.v              reset handling
+  top_zedboard_eq.v
 
   codec/
-    adau1761_config.v        ADAU1761 I2C startup configuration
-    i2c_master.v             I2C write controller
-    audio_codec_if.v         audio clocking and sample interface
-    i2s_rx.v                 serial audio receiver
-    i2s_tx.v                 serial audio transmitter
+    adau1761_config.v      I2C startup sequence for the codec
+    i2c_master.v
+    audio_codec_if.v
+    i2s_rx.v
+    i2s_tx.v
 
   dsp/
-    biquad_iir.v             pipelined IIR biquad filter
-    eq_5band.v               five cascaded biquad bands
-    volume_control.v         master digital gain
-    saturator.v              signed clipping protection
-    vu_meter.v               LED audio level meter
+    biquad_iir.v           the filter core — pipelined
+    eq_5band.v             five cascaded biquad stages
+    volume_control.v
+    saturator.v            signed clipping so you don't get wrap-around
+    vu_meter.v
 
   control/
-    uart_rx.v                UART byte receiver
-    uart_tx.v                UART byte transmitter
-    uart_packet_parser.v     command packet decoder
-    eq_register_bank.v       coefficients and control registers
-    uart_status_tx.v         VU/status packet transmitter
+    uart_rx.v
+    uart_tx.v
+    uart_packet_parser.v
+    eq_register_bank.v
+    uart_status_tx.v
 
   common/
     sync_reset.v
     edge_detect.v
 
 constraints/
-  zedboard_eq.xdc            ZedBoard pin constraints
+  zedboard_eq.xdc
 
 gui/
-  eq_gui.py                  Python Tkinter control GUI
-  gui_preview.svg            static GUI preview
+  eq_gui.py
 
 tb/
   tb_biquad_iir.v
@@ -139,154 +94,93 @@ docs/
 vivado_create_project.tcl
 ```
 
-## Hardware Used
+---
 
-- ZedBoard FPGA development board
-- Xilinx Zynq-7000 XC7Z020
+## Hardware
+
+- ZedBoard (Xilinx Zynq-7000 XC7Z020)
 - Onboard ADAU1761 audio codec
-- 3.3 V USB-UART adapter for GUI control
-- Audio source and headphones/speakers
+- 3.3V USB-UART adapter for the GUI connection (see below)
+- Any audio source + headphones or speakers
 
-## Important UART Note
+### UART Wiring — Read This
 
-The ZedBoard onboard USB-UART connector is connected to the PS MIO UART. This project is a pure PL RTL design, so the GUI UART is routed through PMOD JA instead.
+The ZedBoard's onboard USB-UART goes to the PS MIO, not the PL. Since this project is pure PL RTL, UART is routed through **PMOD JA** instead.
 
-Use a 3.3 V USB-UART adapter:
-
-```text
-USB-UART TX  ->  JA1 / UART_RX
-USB-UART RX  ->  JA2 / UART_TX
-GND          ->  GND
+```
+USB-UART TX  →  JA1  (FPGA UART_RX)
+USB-UART RX  →  JA2  (FPGA UART_TX)
+GND          →  GND
 ```
 
-## Build In Vivado
+Use a 3.3V adapter. Don't use 5V logic on the PMOD pins.
 
-Open Vivado and run:
+---
+
+## Build
+
+Open Vivado and run the project creation script:
 
 ```tcl
-cd "C:/Users/AYUSH SHARMA/Documents/Codex/2026-05-28/i-want-you-to-create-y"
+cd "C:/path/to/your/project"
 source vivado_create_project.tcl
 ```
 
-Then:
+Then synthesize → implement → generate bitstream → program. Top module is `top_zedboard_eq`.
 
-1. Run synthesis
-2. Run implementation
-3. Generate bitstream
-4. Program the ZedBoard
+---
 
-The top module is:
-
-```text
-top_zedboard_eq
-```
-
-## Run The GUI
-
-Install pyserial:
+## GUI
 
 ```bash
 pip install pyserial
-```
-
-Start the GUI:
-
-```bash
 python gui/eq_gui.py
 ```
 
-The GUI provides:
+Select your COM port, hit Connect, and the sliders update the FPGA in real time. The VU meter at the bottom reflects what the FPGA is actually measuring at the output stage — not something calculated on the PC side.
 
-- Serial port selection
-- Connect/disconnect buttons
-- Five EQ gain sliders
-- Master volume slider
-- Bypass control
-- Mute control
-- Reset-flat button
-- Live VU meter display from FPGA status packets
+Controls: 5 EQ band sliders, master volume, bypass, mute, reset-to-flat.
 
-## GUI Preview
-
-![GUI Preview](gui/gui_preview.svg)
+---
 
 ## UART Protocol
 
-PC to FPGA packet:
+**PC → FPGA** (8 bytes):
+```
+A5  CMD  INDEX  DATA3  DATA2  DATA1  DATA0  CHECK
+```
+`CHECK` = XOR of the first 7 bytes.
 
-```text
-A5 CMD INDEX DATA3 DATA2 DATA1 DATA0 CHECK
+| CMD  | Action              |
+|------|---------------------|
+| `01` | Set EQ coefficient  |
+| `02` | Set master volume   |
+| `03` | Set flags (mute/bypass) |
+| `04` | Reset to flat EQ   |
+
+**FPGA → PC** (4 bytes):
+```
+5A  VU  FLAGS  CHECK
 ```
 
-`CHECK` is the XOR of the first seven bytes.
+Full protocol details in [`docs/uart_protocol.md`](docs/uart_protocol.md).
 
-Main commands:
+---
 
-| CMD | Meaning |
-| --- | ------- |
-| `01` | Set coefficient |
-| `02` | Set master volume |
-| `03` | Set flags |
-| `04` | Reset to flat EQ |
+## Current State
 
-FPGA to PC status packet:
+RTL is complete, bitstream generates cleanly, GUI is working. If you get no audio on first hardware bring-up, start with `rtl/codec/adau1761_config.v` — the analog routing registers in the ADAU1761 are the most likely culprit.
 
-```text
-5A VU FLAGS CHECK
-```
+## Things Still On the List
 
-More details are in [`docs/uart_protocol.md`](docs/uart_protocol.md).
+- EQ presets in the GUI
+- Hardware fallback controls (ZedBoard switches/buttons)
+- Frequency response plot overlay
+- Proper 12.288 MHz audio clock via Clocking Wizard (currently approximated)
+- Codec config self-test / loopback mode
 
-## LED VU Meter
-
-The final processed output audio is measured inside the FPGA. The magnitude is smoothed with a simple decay and displayed as a bar graph on ZedBoard LEDs LD0-LD7.
-
-This means the LEDs respond to the same signal being sent to the audio output.
-
-## What This Project Demonstrates
-
-This project combines multiple digital design areas:
-
-- Real-time FPGA DSP
-- Fixed-point arithmetic
-- IIR filter implementation
-- Timing-aware pipelined datapaths
-- Audio codec configuration
-- I2C peripheral control
-- I2S-style serial audio transfer
-- UART communication
-- Hardware/software interaction using a Python GUI
-
-## Interview Explanation
-
-A short way to explain the project:
-
-> I built a real-time 5-band audio equalizer on the ZedBoard FPGA. Audio samples come from the ADAU1761 codec, pass through five pipelined biquad IIR filters, then go through volume control and saturation before returning to the codec. A Python GUI sends new filter coefficients and control commands over UART, while the FPGA shows output audio level on the onboard LEDs.
-
-The main point is that audio is processed fully in hardware. UART is used only for low-speed control data.
-
-## Current Status
-
-- RTL project created
-- Bitstream generation verified in Vivado
-- Python GUI implemented
-- LED VU meter included
-- Codec configuration table included
-
-If audio output does not appear on first hardware test, the first area to check is the ADAU1761 analog routing and register configuration in:
-
-```text
-rtl/codec/adau1761_config.v
-```
-
-## Future Improvements
-
-- Add more EQ presets in the GUI
-- Add switch/button fallback controls on the ZedBoard
-- Add frequency response plots to the GUI
-- Use a Clocking Wizard for an exact 12.288 MHz audio master clock
-- Add loopback and codec configuration self-test modes
+---
 
 ## License
 
-This project is intended for learning, FPGA portfolio work, and academic demonstration.
+For learning, portfolio, and academic use.
