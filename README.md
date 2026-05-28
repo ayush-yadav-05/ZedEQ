@@ -1,6 +1,6 @@
 # ZedEQ — FPGA Based Audio Equalizer with GUI Control
 
-A real-time 5-band parametric audio equalizer implemented entirely in FPGA programmable logic, with a Python desktop GUI for live control. No ARM core, no Linux, no shortcuts — the PL does all the heavy lifting.
+A real-time 5-band parametric audio equalizer implemented entirely in FPGA programmable logic, with a Python desktop GUI for live control.
 
 ![GUI Preview](docs/gui_preview.png)
 
